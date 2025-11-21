@@ -26,13 +26,13 @@
 | Agent 名称 | 功能 |
 |-----------|------|
 | **Task Router Agent** | 自动分析用户输入，完成任务拆解与路由 |
-| **NewsCrawler Agent** | 通过工具自动抓取新闻数据 |
-| **NewsClassifier Agent** | 新闻分类（如政治/经济/科技等） |
+| **NewsCrawler Agent** | 通过Newsapi获取新闻数据 |
 | **Summarizer Agent** | 生成长新闻摘要、要点、分段结构化信息 |
-| **EventExtractor Agent** | 新闻事件抽取（主语/动作/客体/影响） |
+| **EventExtractor Agent** | 新闻事件抽取（主语/动作/客体/影响）获取相关的实体关键词 |
 | **NewsQA Agent** | 基于 RAG 的问答 |
 | **Memory Manager Agent** | 管理短期/长期记忆，自动写入向量库 |
-
+| **translator Agent**| 生成对应新闻的中文翻译方便对比阅读 |
+| **EntityQuery Agent**| 根据查询的相关实体调用搜索引擎进行整理出信息卡片|
 所有 Agents 均由 **Orchestrator（大脑）** 统一调度。
 
 ---
