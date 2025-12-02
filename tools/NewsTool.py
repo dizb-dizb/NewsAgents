@@ -2,10 +2,13 @@ import requests
 from langchain.tools import Tool
 from langchain_openai import ChatOpenAI
 from config.load_key import load_api_key
+from typing import Dict
 # --- 1. 定义新闻搜索函数 ---
 firecrawl_api_key=load_api_key("FIRECRAWL_API_KEY")
 NEW_API_KEY = load_api_key("NEW_API_KEY")
 JINA_API_KEY=load_api_key("JINA_API_KEY")
+SERP_API_KEY =  load_api_key("SERP_API_KEY")
+SEARCH_ENGINE_URL = "https://serpapi.com/search"  # SerpAPI 接口（免费版足够测试）
 def search_news(
     query: str,
     search_in: str = "title,description,content",
@@ -166,4 +169,100 @@ news_extract_tool = Tool(
     name="extract_news_original_content",
     func=extract_news_original_content,
     description="提取新闻网页的纯净原文，自动过滤广告、导航栏等冗余内容，仅支持新闻类 URL"
+)
+# ======================== 2. 工具函数：搜索引擎调用 ========================
+def search_entity_info(entity_name: str) -> str:
+    """
+    调用搜索引擎获取实体的核心信息（用于生成知识卡片）
+    支持：公司、人物、政策、事件等实体
+    """
+    if not entity_name or len(entity_name) < 2:
+        return "错误：实体名称无效"
+    
+    print(f"正在搜索实体：{entity_name}")
+    
+    try:
+        # SerpAPI 搜索（可替换为百度搜索 API、必应 API 等）
+        params = {
+            "q": entity_name,
+            "api_key": SERP_API_KEY,
+            "engine": "google",  # 可选：baidu（需配置对应 engine）
+            "hl": "zh-CN",
+            "gl": "cn",
+            "fields": "knowledge_graph,organic_results"  # 优先获取知识图谱
+        }
+        
+        response = requests.get(SEARCH_ENGINE_URL, params=params, timeout=30)
+        response.raise_for_status()
+        search_result = response.json()
+        
+        # 提取核心信息（优先知识图谱，无则取前3条搜索结果摘要）
+        knowledge_card = ""
+        
+        # 1. 提取知识图谱（结构化信息）
+        if "knowledge_graph" in search_result:
+            kg = search_result["knowledge_graph"]
+            knowledge_card += f"【实体名称】{kg.get('title', entity_name)}\n"
+            if "type" in kg:
+                knowledge_card += f"【实体类型】{kg['type']}\n"
+            if "description" in kg:
+                knowledge_card += f"【核心描述】{kg['description'][:500]}...\n"
+            if "website" in kg:
+                knowledge_card += f"【官方链接】{kg['website']}\n"
+            if "founding_date" in kg:
+                knowledge_card += f"【成立时间】{kg['founding_date']}\n"
+            if "headquarters" in kg:
+                knowledge_card += f"【总部/所在地】{kg['headquarters']}\n"
+        
+        # 2. 若无知识图谱，提取有机结果摘要
+        elif "organic_results" in search_result and len(search_result["organic_results"]) > 0:
+            knowledge_card += f"【实体名称】{entity_name}\n"
+            knowledge_card += f"【核心描述】\n"
+            for i, res in enumerate(search_result["organic_results"][:3], 1):
+                snippet = res.get("snippet", "无摘要")
+                knowledge_card += f"{i}. {snippet[:200]}...\n"
+            knowledge_card += f"【搜索提示】未找到结构化知识图谱，以上为相关搜索摘要\n"
+        
+        else:
+            knowledge_card = f"【实体名称】{entity_name}\n【核心描述】未搜索到相关有效信息"
+        
+        return knowledge_card.strip()
+    
+    except requests.exceptions.Timeout:
+        return f"【实体名称】{entity_name}\n【错误】搜索超时，未获取到信息"
+    except requests.exceptions.RequestException as e:
+        return f"【实体名称】{entity_name}\n【错误】搜索失败：{str(e)[:100]}"
+    except Exception as e:
+        return f"【实体名称】{entity_name}\n【错误】解析搜索结果失败：{str(e)[:100]}"
+# ======================== 3. 封装为 LangChain 标准 Tool ========================
+entity_search_tool = Tool(
+    name="search_entity_info",  # Tool 名称（必须唯一）
+    func=search_entity_info,    # 绑定工具函数
+    description="""
+    用于查询实体的核心信息，生成结构化知识卡片。
+    适用场景：当需要了解新闻中核心实体的详细背景信息时调用
+    """,  # 详细描述（帮助 LLM 判断是否需要调用）
+    return_direct=False  # 是否直接返回结果（默认 False，可在 Chain 中进一步处理）
+)
+def get_serp_json(entity_name: str) -> Dict:
+    """调用 SerpAPI 获取实体知识图谱 JSON"""
+    if not SERP_API_KEY:
+        raise EnvironmentError("请在 .env 中设置 SERP_API_KEY")
+    
+    params = {
+        "api_key": SERP_API_KEY,
+        "engine": "google",
+        "q": entity_name,
+        "hl": "zh-CN",
+        "gl": "cn",
+        "fields": "knowledge_graph"
+    }
+    response = requests.get("https://serpapi.com/search", params=params, timeout=30)
+    response.raise_for_status()
+    return response.json().get("knowledge_graph", {})
+entity_json_tool=Tool(
+    name="entity_json_tool",
+    func=get_serp_json,
+    description="获取到实体的知识图谱的json的结果",
+    return_direct=False
 )
