@@ -1,77 +1,34 @@
+# MultiLangTranslationAgent_Qwen.py
+from langchain_openai import ChatOpenAI
 import os
-from openai import OpenAI
 
 class MultiLangTranslationAgent:
-    """
-    多语言翻译 Agent，将任意语言新闻翻译成中文
-    使用 OpenAI SDK 调用 Qwen 系列模型（qwen-plus / qwen-3）
-    """
-    def __init__(self, client: OpenAI, model="qwen-plus"):
-        self.client = client
-        self.model = model
+    def __init__(self):
+        self.llm = ChatOpenAI(
+            api_key="sk-28767c54e7bd45f8a9e60de7f154e588",
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",  # 北京地区
+            model="qwen-plus",
+            temperature=0  # 翻译任务建议确定性输出
+        )
+    def translate_text(self, text, target_language="zh"):
+        prompt = [
+            {"role": "system", "content": "You are a professional translator."},
+            {"role": "user", "content": f"请将以下文本翻译成{target_language}：\n{text}"}
+        ]
+        response = self.llm.invoke(prompt)
+        response_dict = response.model_dump()  # 转为 dict
+        return response_dict["content"]
 
-    def translate_news(self, article: dict) -> dict:
-        translated_article = article.copy()
-        original_language = article.get("language", "未知语言")
-        translated_article["original_language"] = original_language
 
+    def translate_news(self, article):
+        """
+        article: dict, 例如 {"title": "...", "content": "..."}
+        返回翻译后的文章字典
+        """
+        translated_article = {}
         # 翻译标题
-        if article.get("title"):
-            translated_article["title_zh"] = self._translate_text(
-                f"请将下面的新闻标题翻译成中文，并保持新闻专业风格：\n{article['title']}"
-            )
-        else:
-            translated_article["title_zh"] = ""
-
-        # 翻译描述
-        if article.get("description"):
-            translated_article["description_zh"] = self._translate_text(
-                f"请将下面的新闻摘要翻译成中文，并保持新闻专业风格：\n{article['description']}"
-            )
-        else:
-            translated_article["description_zh"] = ""
-
+        translated_article["title_zh"] = self.translate_text(article["title"], target_language="zh")
         # 翻译内容
-        if article.get("content"):
-            translated_article["content_zh"] = self._translate_text(
-                f"请将下面的新闻内容翻译成中文，并保持新闻专业风格：\n{article['content']}"
-            )
-        else:
-            translated_article["content_zh"] = ""
-
+        translated_article["content_zh"] = self.translate_text(article["content"], target_language="zh")
         return translated_article
 
-    def _translate_text(self, text: str) -> str:
-        completion = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": "你是一个专业的新闻翻译助手。"},
-                {"role": "user", "content": text}
-            ],
-            temperature=0
-        )
-        return completion.choices[0].message.content
-if __name__ == "__main__":
-    # 使用环境变量或直接填入 API Key
-    API_KEY_QWEN = "sk-28767c54e7bd45f8a9e60de7f154e588"
-    client = OpenAI(
-        api_key=API_KEY_QWEN,
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
-    )
-
-    translator = MultiLangTranslationAgent(client, model="qwen-plus")
-
-    # 示例多语言新闻
-    article_jp = {
-        "title": "新しいAIチップがリリースされました",
-        "description": "新しいAIチップはトレーニング速度を2倍に向上させます。",
-        "content": "2025年11月20日、あるテック企業は新しいAIチップを発表し、機械学習モデルのトレーニング速度を2倍に向上させました。",
-        "url": "https://example.com/news_jp",
-        "source": "TechCrunch Japan",
-        "published_at": "2025-11-20T10:00:00Z",
-    }
-
-    translated = translator.translate_news(article_jp)
-    print("标题:", translated["title_zh"])
-    print("摘要:", translated["description_zh"])
-    print("内容:", translated["content_zh"])

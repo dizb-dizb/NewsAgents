@@ -1,11 +1,8 @@
 # 📰 Intelligent News Agent System  
 ### 基于 LangChain / LangGraph / LlamaIndex 的多智能体智能新闻系统  
 **RAG + Task Routing + Multi-Agent + Memory + Continual Learning**
-
 本项目是一个面向真实业务场景的 **智能新闻处理与问答系统**，通过 **多智能体（Multi-Agent）协作**、**RAG 检索增强**、**上下文工程（Context Engineering）** 和 **持续学习（Continual Training）** 实现对新闻的自动抓取、分类、事件抽取、摘要生成与智能问答。
-
 本项目用于展示 Agent 工程能力，全方位覆盖企业级 JD 所需技能，包括：
-
 - 🧠 **任务拆解与策略调度（Task Decomposition & Orchestration）**  
 - 👥 **多智能体协作（Multi-Agent System）**  
 - 🔧 **工具调用（Tool Calling）**  
@@ -14,31 +11,22 @@
 - 💡 **Context Engineering（提示工程 + 动态上下文）**  
 - ⚙️ **LangChain / LangGraph 工作流构建**  
 - 🧩 **LlamaIndex 用于索引、事件知识库、实体库**
-
 ---
-
 ## 🚀 功能特点（Features）
-
 ### 1. 多智能体（Multi-Agent）新闻处理系统
-
 系统由多个专用智能体组成，协作完成不同任务：
-
 | Agent 名称 | 功能 |
 |-----------|------|
 | **Task Router Agent** | 自动分析用户输入，完成任务拆解与路由 |
-| **NewsCrawler Agent** | 通过Newsapi获取新闻数据 |
-| **Summarizer Agent** | 生成长新闻摘要、要点、分段结构化信息 |
-| **EventExtractor Agent** | 新闻事件抽取（主语/动作/客体/影响）获取相关的实体关键词 |
+| **NewsCrawler Agent** | 通过Newsapi获取新闻数据过滤非新闻的搜索结果 |
 | **NewsQA Agent** | 基于 RAG 的问答 |
 | **Memory Manager Agent** | 管理短期/长期记忆，自动写入向量库 |
 | **translator Agent**| 生成对应新闻的中文翻译方便对比阅读 |
 | **EntityQuery Agent**| 根据查询的相关实体调用搜索引擎进行整理出信息卡片|
-所有 Agents 均由 **Orchestrator（大脑）** 统一调度。
+| **NewsFilter Agent**| 负责将页面的非新闻内容进行过滤比如广告以及其他无用信息保留新闻核心信息|
 
 ---
-
 ### 2. 基于 LangGraph 的 Agent 工作流
-
 采用 LangChain 官方推荐的 **LangGraph**，构建可视化、可追踪、支持长程运行的智能体工作流，包括：
 
 - 动态任务路由  
@@ -84,7 +72,6 @@
 - 向量库扩展  
 - timeline 自动演化  
 
-构成“越用越聪明”的知识体系。
 
 ---
 
@@ -101,4 +88,10 @@
 
 ---
 
-
+### 6.Feedback training replacement mechanism（反馈训练代替机制）
+**这里的实现的细节是通过反馈机制用户对于对话的满意程度进行评分然后以及对话的轮数以及使用情感ai对于用户的对话的满意程度和情绪分析给出机器得分。
+（存在用户不打分的情况需要采取的是删除总分占比）
+通过综合的评分机制获取出高质量的对话，对于一段时间的优质对话进行打包处理给到数据库内进行对于核心对话模型的微调改良。
+由于设备该开发均使用api开发，成本很高。
+后面可以反馈机制将数据集获取保存用于自己训练使用，对于采取使用单一的api完成后续可以采取多个api或者集成本地模型。
+而且速度的无法保证很快的及时反应可以采取前期使用api获取数据并且依靠综合的评分机制。
